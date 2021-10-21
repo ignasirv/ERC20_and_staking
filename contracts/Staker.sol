@@ -16,16 +16,21 @@ contract Staker is ReentrancyGuard, Pausable, Ownable {
     IERC20 public rewardsToken;
     IERC20 public stakingToken;
     uint256 public periodFinish = 0;
-    uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 7 days;
+    uint256 public rewardRate = 100;
+    uint256 public rewardsDuration = 365 days;
     uint256 public lastUpdateTime;
+    //@dev: sum of reward rate divided by total tokens staked at each given time
     uint256 public rewardPerTokenStored;
+    uint256 public withdrawFeeValue = 1000;
     address public rewardsDistribution;
+    bool public activeFees = false;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
+    //@dev: We compute the reward when the user stakes more tokens or wtihdraws some token
     mapping(address => uint256) public rewards;
-
+    //@dev: total amount of staked tokens
     uint256 private _totalSupply;
+    //@dev: total amount of staked tokens per user
     mapping(address => uint256) private _balances;
 
     /* ========== CONSTRUCTOR ========== */
@@ -63,6 +68,7 @@ contract Staker is ReentrancyGuard, Pausable, Ownable {
             );
     }
 
+    //@dev: computes how much rewards token an account has
     function earned(address account) public view returns (uint256) {
         return
             _balances[account]
@@ -104,10 +110,20 @@ contract Staker is ReentrancyGuard, Pausable, Ownable {
 
     function getReward() public nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
+
         if (reward > 0) {
+            if (activeFees) {
+                require(reward > withdrawFeeValue, "Not enough to withdraw");
+            }
+
             rewards[msg.sender] = 0;
-            rewardsToken.transfer(msg.sender, reward);
-            emit RewardPaid(msg.sender, reward);
+            if (activeFees) {
+                rewardsToken.transfer(msg.sender, reward - withdrawFeeValue);
+                emit RewardPaid(msg.sender, reward - withdrawFeeValue);
+            } else {
+                rewardsToken.transfer(msg.sender, reward);
+                emit RewardPaid(msg.sender, reward);
+            }
         }
     }
 
@@ -117,6 +133,10 @@ contract Staker is ReentrancyGuard, Pausable, Ownable {
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
+
+    function setWithdrawFeesActive(bool flag) external onlyOwner {
+        activeFees = flag;
+    }
 
     function notifyRewardAmount(uint256 reward)
         external
@@ -177,6 +197,7 @@ contract Staker is ReentrancyGuard, Pausable, Ownable {
 
     /* ========== MODIFIERS ========== */
 
+    //@dev: Recomputes the reward every time supply is changed
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
