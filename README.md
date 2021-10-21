@@ -34,6 +34,7 @@ The Staker contract is inspired from Synthetixio -> https://github.com/Synthetix
  - Added the fees logic at the withdraw rewards function
 <br>
 ## Modifications from the requirements (improvements)
+Some changes have been implemented for a better user experience of the staking:
  - The user can withdraw the staked tokens and the rewards separately with withdraw() and getReward() functions or at the same call with exit() function
  - The user can add more stake without having to withdraw it
  - The owner can add more rewards after deployment and change the rewards duration and the rewards distribution account
